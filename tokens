@@ -1,70 +1,189 @@
-; Tokens:
-; 1. section
-; 2. .data
-; 3. equ
-; 4. extern
-; 5. db
-; 6. dd
-; 7. resb
-; 8. .bss
-; 9. .text
-; 10. global
-; 11. push
-; 12. mov
-; 13. rbp
-; 14. rsp
-; 15. call
-; 16. test
-; 17. jnz
-; 18. jz
-; 19. sub
-; 20. add
-; 21. cmp
-; 22. jg
-; 23. jl
-; 24. neg
-; 25. inc
-; 26. shr
-; 27. xor
-; 28. ret
-; 29. edi
-; 30. esi
-; 31. edx
-; 32. ecx
-; 33. r8d
-; 34. eax
-; 35. ebx
-; 36. rdi
-; 37. rsi
-; 38. rdx
-; 39. rcx
-; 40. r8
-; 41. label (main, .game_loop, .close_window, etc.)
-; 42. register (others not listed above)
-; 43. constant/number
-; 44. memory reference (like [screen_width])
-; 45. string literal
-; 46. comment (lines starting with ;)
-; 47. directive (like global, extern)
-; 48. instruction (others not listed above)
+; Meta information
+pong.asm - 64-bit Pong game with raylib  ; File description
+Compile with: nasm -f elf64...          ; Build instructions
 
-; The code would be tokenized by replacing each element with its corresponding token number.
-; For example, the first few lines would be:
+; Section 1: Data definitions
+section .data                           ; Start of data section
 
-; section .data -> 1 2
-; KEY_W equ 87 -> 3 43
-; KEY_S equ 83 -> 3 43
-; extern InitWindow -> 4 45
-; etc.
+; Input constants
+KEY_W equ 87                            ; W key scan code
+KEY_S equ 83                            ; S key scan code
+KEY_UP equ 265                          ; Up arrow scan code
+KEY_DOWN equ 264                        ; Down arrow scan code
 
-; Full tokenization would require writing a parser to process each line and identify:
-; - Directives (section, equ, extern, etc.)
-; - Instructions (mov, call, etc.)
-; - Registers
-; - Memory references
-; - Labels
-; - Constants
-; - Strings
-; - Comments
+; External functions
+extern InitWindow                       ; Window creation
+extern CloseWindow                      ; Window cleanup
+extern WindowShouldClose                ; Close event check
+... [other raylib functions]           ; Graphics/input functions
 
-; The token stream would then be a sequence of these token numbers representing the entire program.
+; Color values
+BLACK equ 0xFF000000                    ; Black color in ARGB
+WHITE equ 0xFFFFFFFF                    ; White color in ARGB
+
+; Strings
+title db "Pong...",0                    ; Window title (null-terminated)
+score_format db "%d",0                  ; Score formatting string
+
+; Game state variables
+screen_width dd 800                     ; Window width in pixels
+screen_height dd 450                    ; Window height
+paddle_width dd 20                      ; Paddle dimensions
+paddle_height dd 100
+ball_size dd 15                         ; Ball size (square)
+
+; Player 1 state
+player1_x dd 20                         ; X position (left side)
+player1_y dd 175                        ; Y position (center)
+player1_score dd 0                      ; Initial score
+player1_text db "0",0                   ; Score display string
+
+; Player 2 state (mirrored)
+player2_x dd 760                        ; X position (right side)
+player2_y dd 175
+player2_score dd 0
+player2_text db "0",0
+
+; Ball physics
+ball_x dd 400                           ; Starting X position (center)
+ball_y dd 225                           ; Starting Y position
+ball_speed_x dd 4                       ; Horizontal velocity
+ball_speed_y dd 4                       ; Vertical velocity
+
+; Section 2: Code
+section .text                           ; Executable code section
+global main                             ; Entry point
+extern printf, sprintf                  ; External C functions
+
+main:                                   ; Program start
+    push rbp                            ; Setup stack frame
+    mov rbp, rsp
+    
+    ; Initialize game window
+    mov edi, [screen_width]             ; Parameter 1: width
+    mov esi, [screen_height]            ; Parameter 2: height
+    mov rdx, title                      ; Parameter 3: window title
+    call InitWindow                     ; Create window
+    
+    ; Set frame rate
+    mov edi, 60                         ; FPS target
+    call SetTargetFPS
+
+; Main game loop
+.game_loop:
+    call WindowShouldClose              ; Check for close event
+    test eax, eax                       ; Test return value
+    jnz .close_window                   ; Exit if window should close
+
+; Input handling
+    ; Player 1 (W/S keys)
+    mov edi, KEY_W
+    call IsKeyDown
+    test eax, eax
+    jz .check_s
+    sub dword [player1_y], 5            ; Move paddle up
+    
+.check_s:
+    ... [similar for S key]             ; Move paddle down
+
+; Player 2 (arrow keys)
+.check_up:
+    ... [up arrow handling]
+.check_down:
+    ... [down arrow handling]
+
+; Ball movement physics
+.move_ball:
+    mov eax, [ball_speed_x]             ; Get X velocity
+    add [ball_x], eax                   ; Update X position
+    ... [similar for Y axis]
+
+; Collision detection
+    ; Top wall
+    cmp eax, 0                          ; Compare ball Y to top
+    jg .check_bottom                    ; If not hitting top, check bottom
+    neg dword [ball_speed_y]            ; Reverse Y velocity if hit
+
+.check_bottom:
+    ... [similar for bottom wall]
+
+; Paddle collisions
+.check_paddle1:
+    ; Check if ball aligns with paddle
+    cmp eax, ebx                        ; Compare positions
+    jg .check_paddle2                   ; Jump if no collision
+    neg dword [ball_speed_x]            ; Reverse direction on hit
+
+.check_paddle2:
+    ... [similar for right paddle]
+
+; Scoring system
+.check_goals:
+    cmp eax, 0                          ; Left goal check
+    jg .check_right_goal
+    inc dword [player2_score]           ; Award point to player 2
+    ... [update score display]
+    call reset_ball                     ; Reset ball position
+
+.check_right_goal:
+    ... [similar for right goal]
+
+; Rendering
+.draw:
+    call BeginDrawing                   ; Start frame
+    
+    ; Clear screen
+    mov edi, BLACK
+    call ClearBackground
+    
+    ; Draw paddles
+    mov edi, [player1_x]                ; Left paddle parameters
+    mov esi, [player1_y]
+    mov edx, [paddle_width]
+    mov ecx, [paddle_height]
+    mov r8d, WHITE
+    call DrawRectangle
+    
+    ... [similar for right paddle]
+
+    ; Draw ball
+    ... [set ball parameters]
+    call DrawRectangle
+    
+    ; Draw scores
+    mov rdi, player1_text               ; Player 1 score text
+    ... [positioning calculations]
+    call DrawText
+    
+    ... [similar for player 2]
+
+    ; Draw FPS counter
+    mov edi, 10                         ; X position
+    mov esi, 10                         ; Y position
+    call DrawFPS
+    
+    call EndDrawing                     ; Finish frame
+    
+    jmp .game_loop                      ; Continue game loop
+
+; Cleanup
+.close_window:
+    call CloseWindow                    ; Destroy window
+    mov rsp, rbp                        ; Restore stack
+    pop rbp
+    xor eax, eax                        ; Return 0
+    ret
+
+; Game functions
+reset_ball:
+    ; Center ball
+    mov eax, [screen_width]
+    shr eax, 1                          ; Divide by 2
+    mov [ball_x], eax                   ; Set X position
+    
+    ... [similar for Y position]
+
+    ; Reset velocity
+    neg dword [ball_speed_x]            ; Reverse X direction
+    mov dword [ball_speed_y], 4         ; Reset Y speed
+    ret
