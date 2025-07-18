@@ -1,0 +1,70 @@
+; Tokens:
+; 1. section
+; 2. .data
+; 3. equ
+; 4. extern
+; 5. db
+; 6. dd
+; 7. resb
+; 8. .bss
+; 9. .text
+; 10. global
+; 11. push
+; 12. mov
+; 13. rbp
+; 14. rsp
+; 15. call
+; 16. test
+; 17. jnz
+; 18. jz
+; 19. sub
+; 20. add
+; 21. cmp
+; 22. jg
+; 23. jl
+; 24. neg
+; 25. inc
+; 26. shr
+; 27. xor
+; 28. ret
+; 29. edi
+; 30. esi
+; 31. edx
+; 32. ecx
+; 33. r8d
+; 34. eax
+; 35. ebx
+; 36. rdi
+; 37. rsi
+; 38. rdx
+; 39. rcx
+; 40. r8
+; 41. label (main, .game_loop, .close_window, etc.)
+; 42. register (others not listed above)
+; 43. constant/number
+; 44. memory reference (like [screen_width])
+; 45. string literal
+; 46. comment (lines starting with ;)
+; 47. directive (like global, extern)
+; 48. instruction (others not listed above)
+
+; The code would be tokenized by replacing each element with its corresponding token number.
+; For example, the first few lines would be:
+
+; section .data -> 1 2
+; KEY_W equ 87 -> 3 43
+; KEY_S equ 83 -> 3 43
+; extern InitWindow -> 4 45
+; etc.
+
+; Full tokenization would require writing a parser to process each line and identify:
+; - Directives (section, equ, extern, etc.)
+; - Instructions (mov, call, etc.)
+; - Registers
+; - Memory references
+; - Labels
+; - Constants
+; - Strings
+; - Comments
+
+; The token stream would then be a sequence of these token numbers representing the entire program.
